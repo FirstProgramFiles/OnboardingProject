@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # База данных PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: onboarding_postgres_dev
+    environment:
+      POSTGRES_DB: onboarding_dev
+      POSTGRES_USER: onboarding_user
+      POSTGRES_PASSWORD: onboarding_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - onboarding_dev_network
+    restart: unless-stopped
+
+  # Backend API (разработка)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: onboarding_backend_dev
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://onboarding_user:onboarding_password@postgres:5432/onboarding_dev
+      - JWT_SECRET=dev-jwt-secret-key
+      - PORT=8000
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./backend/static:/app/static
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - onboarding_dev_network
+    restart: unless-stopped
+    command: npm run dev
+
+  # Frontend (разработка)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: onboarding_frontend_dev
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - onboarding_dev_network
+    restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  onboarding_dev_network:
+    driver: bridge 
