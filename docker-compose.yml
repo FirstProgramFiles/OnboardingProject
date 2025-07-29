@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # База данных PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: onboarding_postgres
+    environment:
+      POSTGRES_DB: onboarding
+      POSTGRES_USER: onboarding_user
+      POSTGRES_PASSWORD: onboarding_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - onboarding_network
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: onboarding_backend
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://onboarding_user:onboarding_password@postgres:5432/onboarding
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8000
+    volumes:
+      - ./backend/static:/app/static
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - onboarding_network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        npx prisma generate &&
+        npm start
+      "
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: onboarding_frontend
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - onboarding_network
+    restart: unless-stopped
+
+  # Nginx reverse proxy (опционально)
+  nginx:
+    image: nginx:alpine
+    container_name: onboarding_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - onboarding_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  onboarding_network:
+    driver: bridge 

@@ -1,0 +1,35 @@
+FROM node:18-alpine
+
+# Устанавливаем зависимости для разработки
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    pkgconfig \
+    pixman-dev \
+    cairo-dev \
+    pango-dev \
+    libpng-dev \
+    jpeg-dev \
+    giflib-dev \
+    librsvg-dev
+
+WORKDIR /app
+
+# Копируем package.json и package-lock.json
+COPY package*.json ./
+
+# Устанавливаем все зависимости (включая dev)
+RUN npm ci
+
+# Копируем исходный код
+COPY . .
+
+# Генерируем Prisma клиент
+RUN npx prisma generate
+
+# Открываем порт
+EXPOSE 8000
+
+# Команда запуска для разработки
+CMD ["npm", "run", "dev"] 

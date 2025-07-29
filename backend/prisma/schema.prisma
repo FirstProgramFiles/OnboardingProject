@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+}
+
+model Department {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Position {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  password     String
+  firstName    String
+  lastName     String
+  middleName   String?
+  position     String
+  department   String?
+  phone        String?
+  hireDate     DateTime   @default(now())
+  isActive     Boolean    @default(true)
+  roleId       Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  departmentId Int?
+  departmentRef Department? @relation(fields: [departmentId], references: [id])
+  positionId   Int?
+  positionRef  Position?   @relation(fields: [positionId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  managerId    Int?
+  manager      User?      @relation("Manager", fields: [managerId], references: [id])
+  subordinates User[]     @relation("Manager")
+  userTasks    UserTask[]
+  avatar       Bytes?
+  hasSeenWelcome Boolean  @default(false)
+}
+
+model OnboardingStage {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // Название этапа
+  description String?
+  order       Int      // Порядок этапа
+  category    String   // 'ИТР', 'Рабочие', 'Общая'
+  tasks       Task[]
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  title       String   @unique
+  description String?
+  isGlobal    Boolean  @default(true)
+  userTasks   UserTask[]
+  stageId     Int?
+  stage       OnboardingStage? @relation(fields: [stageId], references: [id])
+  category    String? // 'ИТР', 'Рабочие', 'Общая'
+  order       Int?    // Порядок задачи в этапе
+}
+
+model UserTask {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  taskId      Int
+  status      String   // 'pending', 'completed'
+  assignedAt  DateTime @default(now())
+  completedAt DateTime?
+  user        User     @relation(fields: [userId], references: [id])
+  task        Task     @relation(fields: [taskId], references: [id])
+}
